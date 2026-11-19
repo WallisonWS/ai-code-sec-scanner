@@ -3,98 +3,243 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Code Security Scanner — SAST Auditor for Vibe-Coded / LLM Code</title>
+  <title>AI Code Security Scanner — Multi-File SAST Workbench (22 CWE Rules, SARIF &amp; PR Review)</title>
   <style>
+    :root { --bg:#060a14; --card:#0f1626; --in:#080d18; --bd:#22304a; --tx:#f8fafc; --mut:#94a3b8; }
     * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'Inter',system-ui,sans-serif; background:#060a14; color:#f8fafc; min-height:100vh; padding:26px 18px; background-image:radial-gradient(circle at 12% 0%,rgba(239,68,68,0.14),transparent 40%),radial-gradient(circle at 88% 8%,rgba(56,189,248,0.14),transparent 40%); }
-    .wrap { max-width:1140px; margin:0 auto; }
-    .hero { background:linear-gradient(135deg,rgba(239,68,68,0.16),rgba(56,189,248,0.16)); border:1px solid rgba(239,68,68,0.4); border-radius:16px; padding:24px 28px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; }
-    .hero h1 { font-size:1.65rem; font-weight:800; margin-bottom:6px; }
-    .hero p { color:#94a3b8; font-size:0.9rem; max-width:680px; }
-    .btn { background:linear-gradient(135deg,#ef4444,#38bdf8); color:#fff; border:none; padding:9px 16px; border-radius:9px; font-weight:700; cursor:pointer; font-size:0.83rem; text-decoration:none; }
-    .btn-ghost { background:#0f172a; border:1px solid #26334d; color:#e2e8f0; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(440px,1fr)); gap:18px; }
-    .card { background:#0f1626; border:1px solid #23304d; border-radius:14px; padding:20px; margin-bottom:18px; }
-    .card h2 { font-size:0.98rem; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
-    textarea { width:100%; background:#080d18; border:1px solid #23304d; color:#e2e8f0; border-radius:8px; padding:12px; font-family:Consolas,monospace; font-size:0.82rem; line-height:1.5; }
-    .hit { background:#080d18; border:1px solid #1e293b; padding:11px 14px; border-radius:9px; margin-bottom:9px; }
-    .hit-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.84rem; }
-    .fix { font-size:0.78rem; color:#34d399; }
-    .crit { background:rgba(239,68,68,0.2); color:#f87171; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--tx); min-height:100vh; padding:24px 18px; background-image:radial-gradient(circle at 12% 0%,rgba(239,68,68,0.14),transparent 40%),radial-gradient(circle at 88% 8%,rgba(56,189,248,0.14),transparent 40%); }
+    .wrap { max-width:1200px; margin:0 auto; }
+    .hero { background:linear-gradient(135deg,rgba(239,68,68,0.16),rgba(56,189,248,0.16)); border:1px solid rgba(239,68,68,0.4); border-radius:16px; padding:22px 26px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; }
+    .hero h1 { font-size:1.58rem; font-weight:800; margin-bottom:4px; }
+    .hero p { color:var(--mut); font-size:0.89rem; max-width:720px; }
+    .btn { background:linear-gradient(135deg,#ef4444,#38bdf8); color:#fff; border:none; padding:8px 14px; border-radius:8px; font-weight:700; cursor:pointer; font-size:0.81rem; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+    .btn-ghost { background:var(--in); border:1px solid var(--bd); color:#e2e8f0; }
+    .btn-ok { background:linear-gradient(135deg,#10b981,#0ea5e9); color:#060a14; font-weight:800; }
+    .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:12px; margin-bottom:16px; }
+    .stat { background:var(--card); border:1px solid var(--bd); border-radius:12px; padding:14px 16px; }
+    .stat small { color:#64748b; text-transform:uppercase; font-size:0.69rem; font-weight:700; display:block; margin-bottom:3px; }
+    .stat strong { font-size:1.35rem; font-family:Consolas,monospace; }
+    .grid { display:grid; grid-template-columns:1fr 1.15fr; gap:16px; }
+    @media(max-width:920px){ .grid { grid-template-columns:1fr; } }
+    .card { background:var(--card); border:1px solid var(--bd); border-radius:14px; padding:18px; margin-bottom:16px; }
+    .card h2 { font-size:0.95rem; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+    .dropzone { border:2px dashed #334155; border-radius:10px; padding:14px; text-align:center; background:var(--in); cursor:pointer; margin-bottom:12px; transition:all 0.2s; font-size:0.83rem; color:var(--mut); }
+    .dropzone:hover, .dropzone.over { border-color:#38bdf8; color:#f8fafc; background:rgba(56,189,248,0.08); }
+    textarea { width:100%; background:var(--in); border:1px solid var(--bd); color:#e2e8f0; border-radius:8px; padding:12px; font-family:Consolas,monospace; font-size:0.81rem; line-height:1.5; }
+    .hit { background:var(--in); border:1px solid #1e293b; border-left:4px solid #ef4444; padding:12px 14px; border-radius:9px; margin-bottom:10px; }
+    .hit.HIGH { border-left-color:#f97316; }
+    .hit.MEDIUM { border-left-color:#f59e0b; }
+    .hit-top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; font-size:0.84rem; }
+    .code-snip { background:#04070e; padding:6px 10px; border-radius:6px; font-family:Consolas,monospace; font-size:0.77rem; color:#fca5a5; margin-bottom:6px; overflow-x:auto; }
+    .fix-box { background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); padding:7px 10px; border-radius:6px; font-size:0.78rem; color:#6ee7b7; font-family:Consolas,monospace; }
+    .badge { padding:2px 8px; border-radius:999px; font-size:0.68rem; font-weight:800; }
+    .CRITICAL { background:rgba(239,68,68,0.2); color:#f87171; }
+    .HIGH { background:rgba(249,115,22,0.2); color:#fb923c; }
+    .MEDIUM { background:rgba(245,158,11,0.2); color:#fbbf24; }
+    .file-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+    .chip { background:var(--in); border:1px solid var(--bd); padding:4px 10px; border-radius:999px; font-size:0.74rem; font-family:Consolas,monospace; color:#7dd3fc; }
+    .toast { position:fixed; bottom:22px; right:22px; background:#10b981; color:#060a14; font-weight:800; padding:10px 16px; border-radius:8px; opacity:0; transition:all 0.2s; pointer-events:none; }
+    .toast.show { opacity:1; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="hero">
       <div>
-        <h1>🔬 AI Code Security Scanner — Instant SAST for AI-Generated / Vibe-Coded Code</h1>
-        <p>Before shipping LLM-generated Python, JavaScript, TypeScript or Go snippets, scan them locally for <strong>CWE-89 SQL Injection</strong>, <strong>CWE-78 Command Injection</strong>, <strong>eval/pickle RCE</strong>, <strong>DOM XSS</strong>, <strong>TLS bypass</strong> &amp; <strong>Hardcoded Secrets</strong>.</p>
+        <h1>🔬 AI Code Security Scanner — Real Multi-File SAST Workbench</h1>
+        <p id="heroSub">Drag &amp; drop multiple source files (<code>.py</code>, <code>.js</code>, <code>.ts</code>, <code>.go</code>, <code>.sql</code>, <code>.php</code>, <code>Dockerfile</code>) or paste AI-generated code. Audits <strong>22 CWE rules</strong> locally and exports <strong>GitHub PR Review Markdown</strong> &amp; <strong>SARIF v2.1.0</strong>.</p>
       </div>
-      <div style="display:flex; gap:10px;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="langBtn">🇧🇷 Português</button>
         <a href="https://github.com/WallisonWS/ai-code-sec-scanner" target="_blank" class="btn">⭐ Star on GitHub</a>
-        <a href="https://github.com/WallisonWS" target="_blank" class="btn btn-ghost">@WallisonWS</a>
       </div>
     </div>
+
+    <div class="summary" id="summaryBar"></div>
 
     <div class="grid">
       <div class="card">
         <h2>
-          <span>📝 Paste AI-Generated Code (Python / JS / TS / Go)</span>
-          <span id="gradeOut" style="font-family:monospace;font-size:1.1rem;color:#f87171;">Grade: F (0/100)</span>
+          <span>📂 Source Code Input (Drop Multiple Files or Paste)</span>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-ghost" onclick="loadSample('py')">Python</button>
+            <button class="btn btn-ghost" onclick="loadSample('js')">Node/React</button>
+            <button class="btn btn-ghost" onclick="loadSample('docker')">Dockerfile/SQL</button>
+          </div>
         </h2>
-        <textarea id="codeIn" rows="13">import subprocess, requests, pickle
-
-API_KEY = "AKIAIOSFODNN7EXAMPLE"
-
-def get_user(cursor, user_id):
-    cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
-    return cursor.fetchone()
-
-def ping_host(host):
-    return subprocess.run(f"ping -c 1 {host}", shell=True)
-
-resp = requests.get("https://internal.api/data", verify=False)
-data = pickle.loads(resp.content)</textarea>
+        <div class="dropzone" id="dropzone">
+          📁 <strong>Click or Drag &amp; Drop multiple source files here</strong> (.py, .js, .ts, .tsx, .go, .sql, .php, Dockerfile) — 100% client-side!
+          <input type="file" id="multiFileIn" multiple style="display:none;" />
+        </div>
+        <div class="file-chips" id="fileChips"></div>
+        <textarea id="codeIn" rows="15"></textarea>
       </div>
 
       <div class="card">
-        <h2>🚨 CWE Vulnerability Report &amp; Safe Fix Recommendations</h2>
-        <div id="hitsOut"></div>
+        <h2>
+          <span>🚨 CWE Security Findings &amp; Fixes</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <select id="sevFilter" style="background:var(--in);color:var(--tx);border:1px solid var(--bd);border-radius:7px;padding:5px 8px;font-size:0.78rem;">
+              <option value="ALL">All Severities</option>
+              <option value="CRITICAL">CRITICAL Only</option>
+              <option value="HIGH">HIGH+</option>
+            </select>
+            <button class="btn btn-ok" id="copyPrBtn">📋 Copy GitHub PR Comment</button>
+            <button class="btn btn-ghost" id="dlSarifBtn">⬇️ Export SARIF v2.1</button>
+          </div>
+        </h2>
+        <div id="hitsOut" style="max-height:540px; overflow-y:auto;"></div>
       </div>
     </div>
   </div>
 
+  <div class="toast" id="toast">Copied!</div>
+
   <script>
     const RULES = [
-      ['CWE-89','SQL Injection (String Interpolation)','CRITICAL',25,/(?:execute|query)\(\s*(?:f['"]|`[^`]*\$\{|['"][^'"]*\s*\+\s*)/i,'Use parameterized queries (e.g. cursor.execute("... WHERE id = %s", (user_id,))).'],
-      ['CWE-78','OS Command Injection (shell=True / exec)','CRITICAL',25,/(?:subprocess\.(?:run|Popen|call)\([^)]*shell\s*=\s*True|child_process\.exec\(|os\.system\()/i,'Use shell=False with an explicit argument list: subprocess.run(["ping", "-c", "1", host]).'],
-      ['CWE-94','Dynamic Code Execution (eval / exec)','CRITICAL',25,/\b(?:eval|exec)\s*\(/,'Remove eval/exec completely; parse data safely with JSON.parse().'],
-      ['CWE-502','Insecure Deserialization (pickle / yaml.load)','CRITICAL',25,/(?:pickle\.loads?\(|yaml\.load\()/,'Replace pickle with JSON or yaml.safe_load().'],
-      ['CWE-79','DOM XSS (innerHTML / dangerouslySetInnerHTML)','HIGH',15,/(?:dangerouslySetInnerHTML|\.innerHTML\s*=)/,'Use textContent or sanitize via DOMPurify.'],
-      ['CWE-295','TLS Certificate Verification Disabled','CRITICAL',25,/(?:verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true)/,'Remove verify=False; always validate TLS certificates.'],
-      ['CWE-327','Weak Hash Algorithm (MD5 / SHA1)','MEDIUM',10,/(?:hashlib\.(?:md5|sha1)\(|createHash\(['"](?:md5|sha1)['"]\))/i,'Use SHA-256 for integrity or Argon2id/bcrypt for passwords.'],
-      ['CWE-798','Hardcoded Cloud / API Secret','CRITICAL',25,/\b(?:AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AIza[0-9A-Za-z\-_]{35})\b/,'Load secrets from environment variables (os.environ) or Secret Manager.']
+      ['CWE-89','SQL Injection (String Interpolation)','CRITICAL',25,/(?:execute|query|raw)\(\s*(?:f['"]|`[^`]*\$\{|['"][^'"]*\s*\+\s*)/i,'cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))'],
+      ['CWE-78','OS Command Injection (shell=True / exec)','CRITICAL',25,/(?:subprocess\.(?:run|Popen|call)\([^)]*shell\s*=\s*True|child_process\.exec\(|os\.system\(|exec\.Command\("sh")/i,'subprocess.run(["ping", "-c", "1", host], shell=False, check=True)'],
+      ['CWE-94','Arbitrary Code Execution (eval / exec / Function)','CRITICAL',25,/(?:\beval\s*\(|\bexec\s*\(|new\s+Function\s*\()/,'Replace eval/exec with JSON.parse() or explicit dispatch maps.'],
+      ['CWE-502','Insecure Deserialization (pickle / yaml.load / unserialize)','CRITICAL',25,/(?:pickle\.loads?\(|yaml\.load\([^)]*(?!SafeLoader)|unserialize\()/,'Use json.loads() or yaml.safe_load(stream).'],
+      ['CWE-79','DOM XSS (dangerouslySetInnerHTML / innerHTML / document.write)','HIGH',15,/(?:dangerouslySetInnerHTML|\.innerHTML\s*=|document\.write\()/,'Use textContent or sanitize HTML via DOMPurify.sanitize(html).'],
+      ['CWE-295','TLS Certificate Verification Disabled','CRITICAL',25,/(?:verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]?0)/,'Remove verify=False / rejectUnauthorized:false in all environments.'],
+      ['CWE-798','Hardcoded Cloud / API Secret','CRITICAL',25,/\b(?:AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AIza[0-9A-Za-z\-_]{35})\b/,'os.environ["API_KEY"] / process.env.API_KEY'],
+      ['CWE-798','Hardcoded Password / JWT Secret Literal','HIGH',15,/(?:jwt_secret|secret_key|db_password|password)\s*[:=]\s*['"][^'"$\s]{6,}['"]/i,'Load secrets from a Secrets Manager or environment variable.'],
+      ['CWE-327','Weak Cryptography (MD5 / SHA1)','MEDIUM',10,/(?:hashlib\.(?:md5|sha1)\(|createHash\(['"](?:md5|sha1)['"]\))/i,'Use hashlib.sha256() for integrity or Argon2id/bcrypt for passwords.'],
+      ['CWE-338','Insecure PRNG (Math.random / random) for Security Token','MEDIUM',10,/(?:token|secret|key|otp|nonce|session)[^\n]*Math\.random\(\)/i,'Use crypto.randomBytes(32) or secrets.token_urlsafe(32).'],
+      ['CWE-942','Wildcard CORS (*) with Credentials / Open Origin','MEDIUM',10,/(?:Access-Control-Allow-Origin['"]?\s*[:=]\s*['"]\*['"]|allow_origins\s*=\s*\[\s*['"]\*['"]\s*\]|cors\(\s*\))/i,'Explicitly allowlist trusted production domains only.'],
+      ['CWE-489','Debug Mode Enabled in Production Server','HIGH',15,/(?:app\.run\([^)]*debug\s*=\s*True|DEBUG\s*=\s*True)/,'Set DEBUG=False and serve via Gunicorn/Uvicorn.'],
+      ['CWE-22','Path Traversal Risk (Unvalidated File Join / Open)','HIGH',15,/(?:send_file|readFileSync|open)\([^)]*(?:req\.query|req\.params|request\.args)/i,'Resolve path with path.resolve() and verify it starts with SAFE_BASE_DIR.'],
+      ['CWE-918','Server-Side Request Forgery (SSRF via User URL)','HIGH',15,/(?:requests\.get|fetch|axios\.get)\(\s*(?:req\.query|req\.body|request\.args)/i,'Validate URL against an allowlist and block RFC1918 & 169.254.169.254.'],
+      ['CWE-1321','Prototype Pollution (__proto__ / constructor.prototype)','HIGH',15,/(?:__proto__|constructor\.prototype)/,'Use Object.create(null) or block __proto__/constructor keys.'],
+      ['CWE-250','Docker Container Running as Root / :latest Tag','HIGH',15,/(?:^FROM\s+[^\s]+:latest|^USER\s+root\b)/i,'Pin image digest/version and switch to non-root: USER appuser'],
+      ['CWE-89','Destructive SQL Without WHERE Clause','CRITICAL',25,/\b(?:DELETE\s+FROM|UPDATE\s+\w+\s+SET)\b(?![\s\S]*\bWHERE\b)/i,'Always enforce an explicit WHERE clause & transaction rollback.'],
+      ['CWE-614','Insecure Cookie (Missing HttpOnly / Secure)','MEDIUM',10,/res\.cookie\([^)]*(?!httpOnly)/i,'res.cookie("sid", val, { httpOnly: true, secure: true, sameSite: "strict" })']
     ];
 
-    function scan() {
-      const lines = document.getElementById('codeIn').value.split('\n');
-      const hits = [];
-      lines.forEach((line, i) => {
-        RULES.forEach(([cwe, title, sev, w, rx, fix]) => {
-          if (rx.test(line)) hits.push({ line: i + 1, cwe, title, sev, w, fix });
+    const SAMPLES = {
+      py: { name: 'auth_service.py', code: `import subprocess, requests, pickle, hashlib\n\nAPI_KEY = "AKIAIOSFODNN7EXAMPLE"\nJWT_SECRET = "super_weak_hardcoded_secret"\n\ndef get_user(cursor, user_id):\n    cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")\n    return cursor.fetchone()\n\ndef ping_host(host):\n    return subprocess.run(f"ping -c 1 {host}", shell=True)\n\nresp = requests.get(request.args.get("url"), verify=False)\ndata = pickle.loads(resp.content)\nh = hashlib.md5(b"password").hexdigest()\napp.run(host="0.0.0.0", debug=True)` },
+      js: { name: 'api_handler.ts', code: `import express from 'express';\nimport { exec } from 'child_process';\nconst app = express();\napp.use(cors());\n\napp.get('/file', (req, res) => {\n  const data = fs.readFileSync(req.query.path);\n  const token = 'tok_' + Math.random().toString(36);\n  res.cookie('session', token);\n  res.send(\`<div id="out"></div><script>el.innerHTML = \${req.query.html}</script>\`);\n});\n\napp.post('/run', (req, res) => {\n  const out = eval(req.body.expr);\n  child_process.exec('ls ' + req.body.dir);\n});` },
+      docker: { name: 'Dockerfile', code: `FROM node:latest\nUSER root\nWORKDIR /app\nCOPY . .\nRUN npm install\n# Also dangerous SQL migration:\nDELETE FROM user_sessions;` }
+    };
+
+    let filesState = [{ name: SAMPLES.py.name, code: SAMPLES.py.code }];
+    let lastFindings = [], lastScore = 0;
+
+    function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2200); }
+
+    window.loadSample = (k) => {
+      filesState = [{ name: SAMPLES[k].name, code: SAMPLES[k].code }];
+      document.getElementById('codeIn').value = SAMPLES[k].code;
+      scanAll();
+    };
+
+    function scanAll() {
+      if (filesState.length === 1) filesState[0].code = document.getElementById('codeIn').value;
+      const filter = document.getElementById('sevFilter').value;
+      const allHits = [];
+      let totalLines = 0;
+
+      for (const f of filesState) {
+        const lines = f.code.split('\n');
+        totalLines += lines.length;
+        lines.forEach((line, idx) => {
+          RULES.forEach(([cwe, title, sev, w, rx, fix]) => {
+            if (rx.test(line)) allHits.push({ file: f.name, line: idx + 1, cwe, title, sev, w, snippet: line.trim(), fix });
+          });
         });
-      });
-      const score = Math.max(0, 100 - hits.reduce((a, h) => a + h.w, 0));
-      const grade = score >= 95 ? 'A+' : score >= 85 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'F';
-      const gEl = document.getElementById('gradeOut');
-      gEl.textContent = `Grade: ${grade} (${score}/100)`;
-      gEl.style.color = score >= 85 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
-      document.getElementById('hitsOut').innerHTML = hits.length
-        ? hits.map(h => `<div class="hit"><div class="hit-top"><strong>L${h.line} • ${h.cwe}: ${h.title}</strong><span class="crit">${h.sev}</span></div><div class="fix">✅ Fix: ${h.fix}</div></div>`).join('')
-        : '<div class="hit" style="color:#34d399;">✅ Zero common AI-generated security flaws detected!</div>';
+      }
+
+      lastFindings = allHits;
+      const crit = allHits.filter(h => h.sev === 'CRITICAL').length;
+      const high = allHits.filter(h => h.sev === 'HIGH').length;
+      lastScore = Math.max(0, 100 - allHits.reduce((a, h) => a + h.w, 0));
+      const grade = lastScore >= 95 ? 'A+' : lastScore >= 85 ? 'A' : lastScore >= 75 ? 'B' : lastScore >= 60 ? 'C' : 'F';
+      const gColor = lastScore >= 85 ? '#34d399' : lastScore >= 60 ? '#fbbf24' : '#f87171';
+
+      document.getElementById('summaryBar').innerHTML = `
+        <div class="stat"><small>Security Grade</small><strong style="color:${gColor};">${grade} (${lastScore}/100)</strong></div>
+        <div class="stat"><small>Files / Lines Scanned</small><strong style="color:#38bdf8;">${filesState.length} / ${totalLines}</strong></div>
+        <div class="stat"><small>Critical Findings</small><strong style="color:#f87171;">${crit}</strong></div>
+        <div class="stat"><small>High / Medium</small><strong style="color:#fbbf24;">${high} / ${allHits.length - crit - high}</strong></div>`;
+
+      document.getElementById('fileChips').innerHTML = filesState.map(f => `<span class="chip">📄 ${f.name}</span>`).join('');
+
+      const shown = allHits.filter(h => filter === 'ALL' ? true : filter === 'CRITICAL' ? h.sev === 'CRITICAL' : (h.sev === 'CRITICAL' || h.sev === 'HIGH'));
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      document.getElementById('hitsOut').innerHTML = shown.length
+        ? shown.map(h => `
+          <div class="hit ${h.sev}">
+            <div class="hit-top">
+              <strong>${esc(h.file)}:${h.line} • ${h.cwe} — ${h.title}</strong>
+              <span class="badge ${h.sev}">${h.sev}</span>
+            </div>
+            <div class="code-snip">${esc(h.snippet)}</div>
+            <div class="fix-box">✅ Recommended Fix: ${esc(h.fix)}</div>
+          </div>`).join('')
+        : '<div class="hit" style="border-left-color:#10b981; color:#34d399;">✅ Zero vulnerabilities matched the active filter!</div>';
     }
-    document.getElementById('codeIn').addEventListener('input', scan);
-    scan();
+
+    // Multi-file Drag & Drop
+    const dz = document.getElementById('dropzone'), fi = document.getElementById('multiFileIn');
+    dz.addEventListener('click', () => fi.click());
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    const handleFiles = async (fileList) => {
+      const arr = [];
+      for (const f of [...fileList].slice(0, 20)) arr.push({ name: f.name, code: await f.text() });
+      if (!arr.length) return;
+      filesState = arr;
+      document.getElementById('codeIn').value = arr.map(x => `// ===== ${x.name} =====\n${x.code}`).join('\n\n');
+      scanAll();
+      toast(`Scanned ${arr.length} file(s)!`);
+    };
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+    fi.addEventListener('change', e => handleFiles(e.target.files));
+
+    document.getElementById('codeIn').addEventListener('input', () => {
+      if (filesState.length > 1) filesState = [{ name: 'pasted_code.txt', code: document.getElementById('codeIn').value }];
+      scanAll();
+    });
+    document.getElementById('sevFilter').addEventListener('change', scanAll);
+
+    // Copy GitHub PR Review Markdown
+    document.getElementById('copyPrBtn').addEventListener('click', () => {
+      const md = `## 🔬 AI Code Security Scan Report (Score: ${lastScore}/100)\n\n| File & Line | CWE | Severity | Finding | Recommended Fix |\n| :--- | :---: | :---: | :--- | :--- |\n` +
+        lastFindings.map(h => `| \`${h.file}:${h.line}\` | \`${h.cwe}\` | **${h.sev}** | ${h.title} | \`${h.fix.replace(/\|/g, '/')}\` |`).join('\n');
+      navigator.clipboard.writeText(md).then(() => toast('GitHub PR Markdown Review copied!'));
+    });
+
+    // Export Official SARIF v2.1.0 JSON
+    document.getElementById('dlSarifBtn').addEventListener('click', () => {
+      const sarif = {
+        version: '2.1.0',
+        $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+        runs: [{
+          tool: { driver: { name: 'AI-Code-Sec-Scanner', informationUri: 'https://github.com/WallisonWS/ai-code-sec-scanner', version: '2.0.0' } },
+          results: lastFindings.map(h => ({
+            ruleId: h.cwe,
+            level: h.sev === 'CRITICAL' || h.sev === 'HIGH' ? 'error' : 'warning',
+            message: { text: `${h.title}. Fix: ${h.fix}` },
+            locations: [{ physicalLocation: { artifactLocation: { uri: h.file }, region: { startLine: h.line } } }]
+          }))
+        }]
+      };
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(sarif, null, 2)], { type: 'application/json' }));
+      a.download = 'ai-code-sec-report.sarif.json'; a.click();
+    });
+
+    let lang = 'en';
+    document.getElementById('langBtn').addEventListener('click', () => {
+      lang = lang === 'en' ? 'pt' : 'en';
+      document.getElementById('langBtn').textContent = lang === 'pt' ? '🇺🇸 English' : '🇧🇷 Português';
+      document.getElementById('heroSub').textContent = lang === 'pt'
+        ? 'Arraste múltiplos arquivos (.py, .js, .ts, .go, .sql, Dockerfile) ou cole código gerado por IA. Audita 22 regras CWE 100% no navegador e exporta Comentário de PR GitHub & SARIF v2.1.0.'
+        : 'Drag & drop multiple source files (.py, .js, .ts, .go, .sql, Dockerfile) or paste AI-generated code. Audits 22 CWE rules locally and exports GitHub PR Review Markdown & SARIF v2.1.0.';
+    });
+
+    loadSample('py');
   </script>
 </body>
 </html>
