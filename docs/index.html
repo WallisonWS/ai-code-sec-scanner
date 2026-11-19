@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Code Security Scanner — SAST Auditor for Vibe-Coded / LLM Code</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',system-ui,sans-serif; background:#060a14; color:#f8fafc; min-height:100vh; padding:26px 18px; background-image:radial-gradient(circle at 12% 0%,rgba(239,68,68,0.14),transparent 40%),radial-gradient(circle at 88% 8%,rgba(56,189,248,0.14),transparent 40%); }
+    .wrap { max-width:1140px; margin:0 auto; }
+    .hero { background:linear-gradient(135deg,rgba(239,68,68,0.16),rgba(56,189,248,0.16)); border:1px solid rgba(239,68,68,0.4); border-radius:16px; padding:24px 28px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; }
+    .hero h1 { font-size:1.65rem; font-weight:800; margin-bottom:6px; }
+    .hero p { color:#94a3b8; font-size:0.9rem; max-width:680px; }
+    .btn { background:linear-gradient(135deg,#ef4444,#38bdf8); color:#fff; border:none; padding:9px 16px; border-radius:9px; font-weight:700; cursor:pointer; font-size:0.83rem; text-decoration:none; }
+    .btn-ghost { background:#0f172a; border:1px solid #26334d; color:#e2e8f0; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(440px,1fr)); gap:18px; }
+    .card { background:#0f1626; border:1px solid #23304d; border-radius:14px; padding:20px; margin-bottom:18px; }
+    .card h2 { font-size:0.98rem; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+    textarea { width:100%; background:#080d18; border:1px solid #23304d; color:#e2e8f0; border-radius:8px; padding:12px; font-family:Consolas,monospace; font-size:0.82rem; line-height:1.5; }
+    .hit { background:#080d18; border:1px solid #1e293b; padding:11px 14px; border-radius:9px; margin-bottom:9px; }
+    .hit-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; font-size:0.84rem; }
+    .fix { font-size:0.78rem; color:#34d399; }
+    .crit { background:rgba(239,68,68,0.2); color:#f87171; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:800; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h1>🔬 AI Code Security Scanner — Instant SAST for AI-Generated / Vibe-Coded Code</h1>
+        <p>Before shipping LLM-generated Python, JavaScript, TypeScript or Go snippets, scan them locally for <strong>CWE-89 SQL Injection</strong>, <strong>CWE-78 Command Injection</strong>, <strong>eval/pickle RCE</strong>, <strong>DOM XSS</strong>, <strong>TLS bypass</strong> &amp; <strong>Hardcoded Secrets</strong>.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <a href="https://github.com/WallisonWS/ai-code-sec-scanner" target="_blank" class="btn">⭐ Star on GitHub</a>
+        <a href="https://github.com/WallisonWS" target="_blank" class="btn btn-ghost">@WallisonWS</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>
+          <span>📝 Paste AI-Generated Code (Python / JS / TS / Go)</span>
+          <span id="gradeOut" style="font-family:monospace;font-size:1.1rem;color:#f87171;">Grade: F (0/100)</span>
+        </h2>
+        <textarea id="codeIn" rows="13">import subprocess, requests, pickle
+
+API_KEY = "AKIAIOSFODNN7EXAMPLE"
+
+def get_user(cursor, user_id):
+    cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+    return cursor.fetchone()
+
+def ping_host(host):
+    return subprocess.run(f"ping -c 1 {host}", shell=True)
+
+resp = requests.get("https://internal.api/data", verify=False)
+data = pickle.loads(resp.content)</textarea>
+      </div>
+
+      <div class="card">
+        <h2>🚨 CWE Vulnerability Report &amp; Safe Fix Recommendations</h2>
+        <div id="hitsOut"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const RULES = [
+      ['CWE-89','SQL Injection (String Interpolation)','CRITICAL',25,/(?:execute|query)\(\s*(?:f['"]|`[^`]*\$\{|['"][^'"]*\s*\+\s*)/i,'Use parameterized queries (e.g. cursor.execute("... WHERE id = %s", (user_id,))).'],
+      ['CWE-78','OS Command Injection (shell=True / exec)','CRITICAL',25,/(?:subprocess\.(?:run|Popen|call)\([^)]*shell\s*=\s*True|child_process\.exec\(|os\.system\()/i,'Use shell=False with an explicit argument list: subprocess.run(["ping", "-c", "1", host]).'],
+      ['CWE-94','Dynamic Code Execution (eval / exec)','CRITICAL',25,/\b(?:eval|exec)\s*\(/,'Remove eval/exec completely; parse data safely with JSON.parse().'],
+      ['CWE-502','Insecure Deserialization (pickle / yaml.load)','CRITICAL',25,/(?:pickle\.loads?\(|yaml\.load\()/,'Replace pickle with JSON or yaml.safe_load().'],
+      ['CWE-79','DOM XSS (innerHTML / dangerouslySetInnerHTML)','HIGH',15,/(?:dangerouslySetInnerHTML|\.innerHTML\s*=)/,'Use textContent or sanitize via DOMPurify.'],
+      ['CWE-295','TLS Certificate Verification Disabled','CRITICAL',25,/(?:verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true)/,'Remove verify=False; always validate TLS certificates.'],
+      ['CWE-327','Weak Hash Algorithm (MD5 / SHA1)','MEDIUM',10,/(?:hashlib\.(?:md5|sha1)\(|createHash\(['"](?:md5|sha1)['"]\))/i,'Use SHA-256 for integrity or Argon2id/bcrypt for passwords.'],
+      ['CWE-798','Hardcoded Cloud / API Secret','CRITICAL',25,/\b(?:AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AIza[0-9A-Za-z\-_]{35})\b/,'Load secrets from environment variables (os.environ) or Secret Manager.']
+    ];
+
+    function scan() {
+      const lines = document.getElementById('codeIn').value.split('\n');
+      const hits = [];
+      lines.forEach((line, i) => {
+        RULES.forEach(([cwe, title, sev, w, rx, fix]) => {
+          if (rx.test(line)) hits.push({ line: i + 1, cwe, title, sev, w, fix });
+        });
+      });
+      const score = Math.max(0, 100 - hits.reduce((a, h) => a + h.w, 0));
+      const grade = score >= 95 ? 'A+' : score >= 85 ? 'A' : score >= 75 ? 'B' : score >= 60 ? 'C' : 'F';
+      const gEl = document.getElementById('gradeOut');
+      gEl.textContent = `Grade: ${grade} (${score}/100)`;
+      gEl.style.color = score >= 85 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+      document.getElementById('hitsOut').innerHTML = hits.length
+        ? hits.map(h => `<div class="hit"><div class="hit-top"><strong>L${h.line} • ${h.cwe}: ${h.title}</strong><span class="crit">${h.sev}</span></div><div class="fix">✅ Fix: ${h.fix}</div></div>`).join('')
+        : '<div class="hit" style="color:#34d399;">✅ Zero common AI-generated security flaws detected!</div>';
+    }
+    document.getElementById('codeIn').addEventListener('input', scan);
+    scan();
+  </script>
+</body>
+</html>
